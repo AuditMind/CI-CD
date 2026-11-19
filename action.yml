@@ -1,0 +1,47 @@
+name: AuditMind scan
+description: Scan the repository with AuditMind and fail the job on findings
+branding:
+  icon: shield
+  color: gray-dark
+
+inputs:
+  api-key:
+    description: AuditMind API key. Store it in repository secrets.
+    required: true
+  path:
+    description: Project directory or .zip archive to scan
+    default: "."
+  fail-on:
+    description: "Fail the job on findings of this level or higher: low, medium, high, critical or none"
+    default: high
+  ai-triage:
+    description: Also run AI triage. It counts towards your weekly limit.
+    default: "false"
+  report:
+    description: Where to save the JSON report. Leave empty to skip.
+    default: auditmind-report.json
+  timeout:
+    description: Seconds to wait for the scan
+    default: "1800"
+  api-url:
+    description: AuditMind API address
+    default: https://api.auditmind.tech
+
+runs:
+  using: composite
+  steps:
+    - name: Run AuditMind scan
+      shell: bash
+      env:
+        AUDITMIND_API_KEY: ${{ inputs.api-key }}
+        AUDITMIND_API_URL: ${{ inputs.api-url }}
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_AI_TRIAGE: ${{ inputs.ai-triage }}
+        INPUT_REPORT: ${{ inputs.report }}
+        INPUT_TIMEOUT: ${{ inputs.timeout }}
+      run: |
+        args=("$INPUT_PATH" --fail-on "$INPUT_FAIL_ON" --timeout "$INPUT_TIMEOUT")
+        if [ -n "$INPUT_REPORT" ]; then args+=(--report "$INPUT_REPORT"); fi
+        if [ "$INPUT_AI_TRIAGE" = "true" ]; then args+=(--ai-triage); fi
+        python3 "$GITHUB_ACTION_PATH/auditmind_scan.py" "${args[@]}"
